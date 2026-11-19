@@ -4,7 +4,7 @@
  * Plugin URI: https://slims.web.id
  * Description: Modul Kiosk untuk menampilkan galeri foto dan video kegiatan yang dikelola dari Admin SLiMS.
  * Version: 1.1.0
- * Author: Pustakawan SLiMS
+ * Author: Muhammad Nur Haritsah
  * Author URI: https://slims.web.id
  */
 
