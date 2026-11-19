@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Kiosk Berita, Galeri & Video
- * Plugin URI: https://slims.web.id
+ * Plugin URI: https://github.com/haritqq/kiosk-berita
  * Description: Modul Kiosk untuk menampilkan galeri foto dan video kegiatan yang dikelola dari Admin SLiMS.
  * Version: 1.1.0
  * Author: Muhammad Nur Haritsah
- * Author URI: https://slims.web.id
+ * Author URI: https://github.com/haritqq
  */
 
 use SLiMS\Plugins;
