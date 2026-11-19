@@ -3,7 +3,7 @@
  * Plugin Name: Kiosk Berita, Galeri & Video
  * Plugin URI: https://slims.web.id
  * Description: Modul Kiosk untuk menampilkan galeri foto dan video kegiatan yang dikelola dari Admin SLiMS.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Pustakawan SLiMS
  * Author URI: https://slims.web.id
  */
@@ -25,6 +25,8 @@ $dbs->query("CREATE TABLE IF NOT EXISTS `plugin_kiosk_media` (
   `media_title` VARCHAR(255) NOT NULL,
   `media_type` ENUM('foto','video') NOT NULL,
   `file_path` VARCHAR(255) NOT NULL,
+  `transition_style` VARCHAR(50) NOT NULL DEFAULT 'fade',
+  `transition_duration` INT(11) NOT NULL DEFAULT 5,
   `created_date` DATETIME NOT NULL,
   PRIMARY KEY (`media_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
