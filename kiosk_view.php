@@ -1,300 +1,355 @@
 <?php
 defined('INDEX_AUTH') OR die('Direct access is not allowed!');
-global $dbs;
+global $dbs, $sysconf;
+
+// Pastikan kolom-kolom transisi dan urutan sudah tersedia di database
+$dbs->query("CREATE TABLE IF NOT EXISTS `plugin_kiosk_media` (
+  `media_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `media_title` VARCHAR(255) NOT NULL,
+  `media_type` ENUM('foto','video') NOT NULL,
+  `file_path` VARCHAR(255) NOT NULL,
+  `transition_style` VARCHAR(50) NOT NULL DEFAULT 'fade',
+  `transition_duration` INT(11) NOT NULL DEFAULT 5,
+  `order_num` INT(11) NOT NULL DEFAULT 0,
+  `created_date` DATETIME NOT NULL,
+  PRIMARY KEY (`media_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+$col_check3 = $dbs->query("SHOW COLUMNS FROM `plugin_kiosk_media` LIKE 'order_num'");
+if ($col_check3 && $col_check3->num_rows == 0) {
+    $dbs->query("ALTER TABLE `plugin_kiosk_media` ADD COLUMN `order_num` INT(11) NOT NULL DEFAULT 0");
+    $dbs->query("UPDATE `plugin_kiosk_media` SET `order_num` = `media_id` WHERE `order_num` = 0");
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiosk Galeri & Video - <?php echo $sysconf['library_name']; ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kiosk Display - <?php echo htmlspecialchars($sysconf['library_name']); ?></title>
     <style>
         * {
             box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0f172a;
-            color: #fff;
             margin: 0;
-            padding: 20px;
-            overflow-x: hidden;
+            padding: 0;
         }
 
-        header {
-            text-align: center;
-            margin-bottom: 20px;
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            cursor: none; /* Sembunyikan kursor agar bersih seperti TV / Digital Signage */
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        header h1 {
-            margin: 0;
-            font-size: 2.5rem;
-            color: #38bdf8;
+        /* Tampilkan kursor sejenak jika mouse digerakkan */
+        body.show-cursor {
+            cursor: default;
         }
 
-        header p {
-            color: #94a3b8;
-            font-size: 1.2rem;
-        }
-
-        .nav-tabs {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .tab-btn {
-            background: #334155;
-            color: #fff;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1.1rem;
-            border-radius: 30px;
-            cursor: pointer;
-            margin: 0 10px;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-
-        .tab-btn.active {
-            background: #0284c7;
-        }
-
-        .section-content {
-            display: none;
-        }
-
-        .section-content.active {
-            display: block;
-        }
-
-        /* Slideshow / Carousel Styling untuk Kiosk */
-        .slideshow-container {
-            max-width: 960px;
+        /* Container Fullscreen Layar Penuh */
+        .kiosk-viewport {
             position: relative;
-            margin: auto;
-            background: #1e293b;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
-            text-align: center;
+            width: 100vw;
+            height: 100vh;
+            background: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
         }
 
-        .slide {
+        /* Elemen Slide (Foto / Video) */
+        .kiosk-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             display: none;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+            overflow: hidden;
         }
 
-        .slide.active-slide {
-            display: block;
+        .kiosk-slide.active-slide {
+            display: flex;
+            z-index: 2;
         }
 
-        .slide img {
-            width: 100%;
-            height: 500px;
-            object-fit: contain;
-            border-radius: 12px;
-            background: #000;
+        /* Media Foto & Video Responsif Menyesuaikan Resolusi Monitor/TV */
+        .kiosk-slide img {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain; /* Menjaga rasio foto tetap sempurna tanpa terpotong / gepeng */
+            background: #000000;
+            pointer-events: none;
         }
 
-        .slide-caption {
-            font-size: 1.5rem;
-            margin-top: 18px;
-            font-weight: bold;
-            color: #f8fafc;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        .kiosk-slide video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain; /* Menjaga rasio video tetap proporsional */
+            background: #000000;
+            outline: none;
+            border: none;
         }
 
-        /* Keyframes Animasi Transisi */
+        /* ========================================= */
+        /* KEYFRAMES GAYA TRANSISI FULLSCREEN        */
+        /* ========================================= */
         @keyframes animFade {
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
         @keyframes animSlideLeft {
-            from { opacity: 0; transform: translateX(100px); }
+            from { opacity: 0; transform: translateX(100vw); }
             to { opacity: 1; transform: translateX(0); }
         }
+
         @keyframes animSlideRight {
-            from { opacity: 0; transform: translateX(-100px); }
+            from { opacity: 0; transform: translateX(-100vw); }
             to { opacity: 1; transform: translateX(0); }
         }
+
         @keyframes animZoomIn {
-            from { opacity: 0; transform: scale(0.85); }
+            from { opacity: 0; transform: scale(0.82); }
             to { opacity: 1; transform: scale(1); }
         }
+
         @keyframes animZoomOut {
-            from { opacity: 0; transform: scale(1.15); }
+            from { opacity: 0; transform: scale(1.18); }
             to { opacity: 1; transform: scale(1); }
         }
+
         @keyframes animFlip {
-            from { opacity: 0; transform: perspective(800px) rotateY(45deg); }
-            to { opacity: 1; transform: perspective(800px) rotateY(0); }
+            from { opacity: 0; transform: perspective(1200px) rotateY(90deg); }
+            to { opacity: 1; transform: perspective(1200px) rotateY(0); }
         }
+
         @keyframes animBounce {
-            0% { opacity: 0; transform: scale(0.7); }
-            60% { opacity: 1; transform: scale(1.05); }
+            0% { opacity: 0; transform: scale(0.65); }
+            60% { opacity: 1; transform: scale(1.04); }
             100% { opacity: 1; transform: scale(1); }
         }
 
-        .trans-fade { animation: animFade 0.8s ease-in-out; }
-        .trans-slide-left { animation: animSlideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-        .trans-slide-right { animation: animSlideRight 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-        .trans-zoom-in { animation: animZoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-        .trans-zoom-out { animation: animZoomOut 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-        .trans-flip { animation: animFlip 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
-        .trans-bounce { animation: animBounce 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        /* Class Animasi */
+        .trans-fade { animation: animFade 0.9s ease-in-out; }
+        .trans-slide-left { animation: animSlideLeft 0.85s cubic-bezier(0.16, 1, 0.3, 1); }
+        .trans-slide-right { animation: animSlideRight 0.85s cubic-bezier(0.16, 1, 0.3, 1); }
+        .trans-zoom-in { animation: animZoomIn 0.85s cubic-bezier(0.16, 1, 0.3, 1); }
+        .trans-zoom-out { animation: animZoomOut 0.85s cubic-bezier(0.16, 1, 0.3, 1); }
+        .trans-flip { animation: animFlip 0.95s cubic-bezier(0.16, 1, 0.3, 1); }
+        .trans-bounce { animation: animBounce 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 
-        /* Container Video */
-        .video-container {
-            max-width: 860px;
-            margin: 0 auto;
-            background: #1e293b;
-            padding: 24px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        }
-
-        .video-container video {
-            width: 100%;
-            max-height: 500px;
-            border-radius: 12px;
-            background: #000;
-        }
-
-        .video-container h3 {
-            margin-top: 15px;
-            font-size: 1.4rem;
-            color: #f8fafc;
-        }
-
-        .back-btn {
+        /* Status audio jika pengguna menyalakan suara */
+        .kiosk-audio-toast {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: #475569;
-            color: #fff;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-            z-index: 99;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: 0.2s;
+            bottom: 25px;
+            right: 25px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 999;
         }
-        .back-btn:hover {
-            background: #334155;
+
+        /* Notifikasi jika belum ada media */
+        .kiosk-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            color: #475569;
+            font-size: 1.1rem;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
 
-    <header>
-        <h1>Anjungan Informasi Kegiatan</h1>
-        <p><?php echo $sysconf['library_name']; ?></p>
-    </header>
-
-    <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('foto')">📸 Slideshow Galeri Foto</button>
-        <button class="tab-btn" onclick="switchTab('video')">🎬 Pemutar Video Kegiatan</button>
-    </div>
-
-    <!-- Bagian Slideshow Foto -->
-    <div id="tab-foto" class="section-content active">
-        <div class="slideshow-container">
-            <?php
-            $q_foto = $dbs->query("SELECT * FROM plugin_kiosk_media WHERE media_type = 'foto' ORDER BY media_id DESC");
-            if ($q_foto && $q_foto->num_rows > 0) {
-                $idx = 0;
-                while ($f = $q_foto->fetch_assoc()) {
-                    $img_url = SWB . 'files/kiosk_media/' . htmlspecialchars($f['file_path']);
-                    $trans_style = !empty($f['transition_style']) ? htmlspecialchars($f['transition_style']) : 'fade';
-                    $trans_dur   = !empty($f['transition_duration']) ? (int)$f['transition_duration'] : 5;
-                    $active_class = ($idx === 0) ? 'active-slide trans-' . $trans_style : '';
-                    
-                    echo '<div class="slide ' . $active_class . '" data-transition="' . $trans_style . '" data-duration="' . $trans_dur . '">';
-                    echo '<img src="' . $img_url . '" alt="' . htmlspecialchars($f['media_title']) . '">';
-                    echo '<div class="slide-caption">' . htmlspecialchars($f['media_title']) . '</div>';
-                    echo '</div>';
-                    $idx++;
-                }
-            } else {
-                echo '<p style="color: #94a3b8; padding: 50px 20px; font-size: 1.2rem;">Belum ada foto kegiatan yang diunggah oleh pustakawan.</p>';
-            }
-            ?>
-        </div>
-    </div>
-
-    <!-- Bagian Video -->
-    <div id="tab-video" class="section-content">
+    <div class="kiosk-viewport" id="kioskViewport">
         <?php
-        $q_video = $dbs->query("SELECT * FROM plugin_kiosk_media WHERE media_type = 'video' ORDER BY media_id DESC");
-        if ($q_video && $q_video->num_rows > 0) {
-            while ($v = $q_video->fetch_assoc()) {
-                $vid_url = SWB . 'files/kiosk_media/' . htmlspecialchars($v['file_path']);
-                echo '<div class="video-container" style="margin-bottom: 25px;">';
-                echo '<video controls autoplay muted loop>';
-                echo '<source src="' . $vid_url . '" type="video/mp4">';
-                echo 'Browser Anda tidak mendukung pemutar video.';
-                echo '</video>';
-                echo '<h3>' . htmlspecialchars($v['media_title']) . '</h3>';
-                echo '</div>';
+        // Ambil SEMUA media (baik foto maupun video) secara berurutan sesuai urutan yang diatur user
+        $q_media = $dbs->query("SELECT * FROM plugin_kiosk_media ORDER BY order_num ASC, media_id ASC");
+        
+        if ($q_media && $q_media->num_rows > 0) {
+            $idx = 0;
+            while ($m = $q_media->fetch_assoc()) {
+                $file_url = SWB . 'files/kiosk_media/' . htmlspecialchars($m['file_path']);
+                $type = $m['media_type']; // 'foto' atau 'video'
+                $trans_style = !empty($m['transition_style']) ? htmlspecialchars($m['transition_style']) : 'fade';
+                $trans_dur   = !empty($m['transition_duration']) ? (int)$m['transition_duration'] : 5;
+                $active_class = ($idx === 0) ? 'active-slide trans-' . $trans_style : '';
+                ?>
+                <div class="kiosk-slide <?php echo $active_class; ?>" 
+                     data-index="<?php echo $idx; ?>"
+                     data-type="<?php echo $type; ?>" 
+                     data-transition="<?php echo $trans_style; ?>" 
+                     data-duration="<?php echo $trans_dur; ?>">
+
+                    <?php if ($type === 'foto'): ?>
+                        <img src="<?php echo $file_url; ?>" alt="" loading="eager">
+                    <?php else: ?>
+                        <!-- Video diputar otomatis (muted & playsinline agar kompatibel semua browser & TV) -->
+                        <video src="<?php echo $file_url; ?>" muted playsinline preload="auto"></video>
+                    <?php endif; ?>
+
+                </div>
+                <?php
+                $idx++;
             }
         } else {
-            echo '<p style="text-align:center; color: #94a3b8; font-size: 1.2rem; padding: 40px;">Belum ada video kegiatan yang diunggah.</p>';
+            echo '<div class="kiosk-empty">Belum ada foto atau video aktif di Kiosk. Silakan upload melalui Admin SLiMS.</div>';
         }
         ?>
     </div>
 
-    <a href="<?php echo SWB; ?>index.php" class="back-btn">← Kembali ke Beranda OPAC</a>
+    <!-- Toast Indikator Audio (Mute / Unmute) -->
+    <div class="kiosk-audio-toast" id="audioToast">🔊 Suara: Nyala</div>
 
-    <script>
-        function switchTab(type) {
-            document.querySelectorAll('.section-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    <script type="text/javascript">
+    (function() {
+        const slides = document.querySelectorAll('.kiosk-slide');
+        const audioToast = document.getElementById('audioToast');
+        let currentIndex = -1;
+        let slideTimer = null;
+        let isMuted = true;
 
-            if (type === 'foto') {
-                document.getElementById('tab-foto').classList.add('active');
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-            } else {
-                document.getElementById('tab-video').classList.add('active');
-                document.querySelectorAll('.tab-btn')[1].classList.add('active');
-            }
+        // Cegah layar monitor / TV mati / tidur (Screen Wake Lock API jika didukung)
+        if ('wakeLock' in navigator) {
+            try {
+                navigator.wakeLock.request('screen').catch(() => {});
+            } catch (err) {}
         }
 
-        // Script Otomatis Slideshow Foto dengan Waktu & Transisi Sesuai Database
-        let slideIndex = 0;
-        let slideTimer = null;
+        // Tampilkan kursor saat mouse digerakkan, lalu sembunyikan otomatis setelah 2 detik
+        let cursorTimeout;
+        document.addEventListener('mousemove', function() {
+            document.body.classList.add('show-cursor');
+            clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(function() {
+                document.body.classList.remove('show-cursor');
+            }, 2000);
+        });
 
-        function showSlides() {
-            let slides = document.getElementsByClassName("slide");
+        // Klik layar untuk masuk ke Native Fullscreen browser & toggle audio video
+        document.addEventListener('click', function() {
+            // Masuk mode fullscreen jika belum
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                }
+            }
+
+            // Toggle suara jika ada video
+            isMuted = !isMuted;
+            document.querySelectorAll('video').forEach(v => v.muted = isMuted);
+            
+            if (audioToast) {
+                audioToast.textContent = isMuted ? '🔇 Suara: Mati' : '🔊 Suara: Nyala';
+                audioToast.style.opacity = '1';
+                setTimeout(() => { audioToast.style.opacity = '0'; }, 1500);
+            }
+        });
+
+        // Fungsi berpindah slide secara mulus berurutan
+        function showSlide(index) {
             if (slides.length === 0) return;
 
-            for (let i = 0; i < slides.length; i++) {
-                slides[i].className = slides[i].className.replace(/\btrans-\S+/g, '').replace('active-slide', '').trim();
+            // Loop kembali ke awal jika sudah di akhir
+            if (index >= slides.length) index = 0;
+            if (index < 0) index = 0;
+
+            // Hentikan dan reset slide sebelumnya
+            slides.forEach(slide => {
+                slide.classList.remove('active-slide');
+                slide.className = slide.className.replace(/\btrans-\S+/g, '').trim();
+                
+                const vid = slide.querySelector('video');
+                if (vid) {
+                    vid.pause();
+                    vid.currentTime = 0;
+                    vid.onended = null;
+                }
+            });
+
+            currentIndex = index;
+            const currentSlide = slides[currentIndex];
+            const mediaType = currentSlide.getAttribute('data-type');
+            const transStyle = currentSlide.getAttribute('data-transition') || 'fade';
+            const duration = parseInt(currentSlide.getAttribute('data-duration')) || 5;
+
+            // Tampilkan slide dengan gaya transisi yang diatur
+            currentSlide.classList.add('active-slide', 'trans-' + transStyle);
+
+            // Bersihkan timer sebelumnya
+            if (slideTimer) {
+                clearTimeout(slideTimer);
+                slideTimer = null;
             }
 
-            slideIndex++;
-            if (slideIndex > slides.length) { slideIndex = 1; }
+            if (mediaType === 'video') {
+                const video = currentSlide.querySelector('video');
+                if (video) {
+                    video.currentTime = 0;
+                    video.muted = isMuted;
 
-            let currentSlide = slides[slideIndex - 1];
-            let trans = currentSlide.getAttribute('data-transition') || 'fade';
-            let duration = parseInt(currentSlide.getAttribute('data-duration')) || 5;
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(() => {
+                            // Jika browser menolak pemutaran dengan suara, paksa mute agar tetap berputar
+                            video.muted = true;
+                            video.play().catch(() => {});
+                        });
+                    }
 
-            currentSlide.classList.add('active-slide', 'trans-' + trans);
+                    // Saat video selesai diputar -> pindah ke media berikutnya
+                    video.onended = function() {
+                        nextSlide();
+                    };
 
-            if (slideTimer) clearTimeout(slideTimer);
-            slideTimer = setTimeout(showSlides, duration * 1000);
+                    // Fallback timer pengaman jika event onended terlewat / video macet
+                    video.onloadedmetadata = function() {
+                        const vidDur = Math.ceil(video.duration);
+                        if (vidDur && !isNaN(vidDur) && vidDur > 0) {
+                            slideTimer = setTimeout(nextSlide, (vidDur + 2) * 1000);
+                        }
+                    };
+                } else {
+                    slideTimer = setTimeout(nextSlide, duration * 1000);
+                }
+            } else {
+                // Tipe Foto: jalankan sesuai durasi detik yang diatur user
+                slideTimer = setTimeout(nextSlide, duration * 1000);
+            }
         }
 
-        // Inisialisasi awal durasi slide pertama
-        let initialSlides = document.getElementsByClassName("slide");
-        if (initialSlides.length > 0) {
-            let firstDuration = parseInt(initialSlides[0].getAttribute('data-duration')) || 5;
-            slideTimer = setTimeout(showSlides, firstDuration * 1000);
+        function nextSlide() {
+            showSlide(currentIndex + 1);
         }
+
+        // Jalankan slide pertama saat halaman selesai dimuat
+        if (slides.length > 0) {
+            showSlide(0);
+        }
+    })();
     </script>
 
 </body>
