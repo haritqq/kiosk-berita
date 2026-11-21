@@ -608,7 +608,7 @@ $bg_upload_url       = SWB . 'files/kiosk_media/backgrounds/';
                 });
 
                 if (audioToast) {
-                    audioToast.textContent = isNowFramed ? '🪟 Tata Letak: Bingkai Melayang di Tengah' : '🖥️ Tata Letak: Memenuhi Layar Penuh (Edge-to-Edge)';
+                    audioToast.textContent = isNowFramed ? '🖼️ Tata Letak: Bingkai Melayang di Tengah' : '🖥️ Tata Letak: Memenuhi Layar Penuh (Edge-to-Edge)';
                     audioToast.style.opacity = '1';
                     setTimeout(() => { audioToast.style.opacity = '0'; }, 2000);
                 }

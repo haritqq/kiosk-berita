@@ -99,7 +99,7 @@ if (isset($_POST['save_bg_settings'])) {
 if (isset($_POST['toggle_display_mode'])) {
     $toggle_target = ($_POST['target_mode'] === 'framed') ? 'framed' : 'fullscreen';
     $dbs->query("REPLACE INTO plugin_kiosk_setting (setting_key, setting_value) VALUES ('media_display_mode', '$toggle_target')");
-    $mode_label = ($toggle_target === 'fullscreen') ? '🖥️ Memenuhi Layar Penuh (Edge-to-Edge)' : '🪟 Bingkai Melayang di Tengah';
+    $mode_label = ($toggle_target === 'fullscreen') ? '🖥️ Memenuhi Layar Penuh (Edge-to-Edge)' : '🖼️ Bingkai Melayang di Tengah';
     $pesan = "<div class='kiosk-alert kiosk-alert-success'>✅ Tata letak Kiosk berhasil diubah ke: <b>{$mode_label}</b>!</div>";
 }
 
@@ -320,15 +320,15 @@ function get_bg_label($tpl)
 {
     $bgs = [
         'default' => '⚙️ Mengikuti Default Kiosk',
-        'orbs' => '🫧 Bola-Bola Bergerak',
-        'ambient' => '🪞 Ambient Blur Cerdas',
+        'orbs' => '🔮 Bola-Bola Bergerak',
+        'ambient' => '🎨 Ambient Blur Cerdas',
         'gradient' => '🌌 Gelombang Aurora',
         'particles' => '✨ Partikel Bintang',
         'navy' => '🏛️ Midnight Navy',
         'black' => '🌑 Hitam Pekat',
         'custom' => '🖼️ Latar Kustom Upload',
     ];
-    return $bgs[$tpl] ?? '🫧 Bola-Bola Bergerak';
+    return $bgs[$tpl] ?? '🔮 Bola-Bola Bergerak';
 }
 
 function get_display_label($mode)
@@ -336,7 +336,7 @@ function get_display_label($mode)
     $modes = [
         'default' => '🌐 Ikuti Global',
         'fullscreen' => '🖥️ Penuh Layar',
-        'framed' => '🪟 Bingkai Tengah',
+        'framed' => '🖼️ Bingkai Tengah',
     ];
     return $modes[$mode] ?? '🖥️ Penuh Layar';
 }
@@ -1160,19 +1160,6 @@ function get_display_label($mode)
                 title="Buka tampilan fullscreen di monitor / TV">
                 📺 Buka Kiosk TV Fullscreen
             </a>
-            <button type="button"
-                onclick="quickToggleDisplay('<?php echo ($current_display_mode === 'fullscreen' ? 'framed' : 'fullscreen'); ?>')"
-                class="kiosk-btn-hero kiosk-btn-hero-dark"
-                title="Klik untuk beralih antara Memenuhi Layar Penuh vs Bingkai Melayang di Tengah">
-                <?php if ($current_display_mode === 'fullscreen'): ?>
-                    🖥️ Tata Letak: Penuh Layar
-                <?php else: ?>
-                    🪟 Tata Letak: Bingkai Tengah
-                <?php endif; ?>
-            </button>
-            <button type="button" onclick="switchMainTab('tab-bg-settings')" class="kiosk-btn-hero kiosk-btn-hero-dark">
-                🎨 Ganti Latar Belakang
-            </button>
         </div>
     </div>
 
@@ -1229,17 +1216,15 @@ function get_display_label($mode)
                     <div class="kiosk-stat-label">Latar Kiosk Aktif</div>
                 </div>
             </div>
-            <div class="kiosk-stat-card" style="cursor: pointer;"
-                onclick="quickToggleDisplay('<?php echo ($current_display_mode === 'fullscreen' ? 'framed' : 'fullscreen'); ?>')"
-                title="Klik untuk beralih tata letak monitor / TV">
+            <div class="kiosk-stat-card">
                 <div class="kiosk-stat-icon" style="background: #e0f2fe; color: #0284c7;">
-                    <?php echo ($current_display_mode === 'fullscreen') ? '🖥️' : '🪟'; ?>
+                    <?php echo ($current_display_mode === 'fullscreen') ? '🖥️' : '🖼️'; ?>
                 </div>
                 <div>
                     <div class="kiosk-stat-number" style="font-size: 0.95rem; font-weight: 700; color: #0284c7;">
                         <?php echo ($current_display_mode === 'fullscreen') ? 'Memenuhi Layar' : 'Bingkai Tengah'; ?>
                     </div>
-                    <div class="kiosk-stat-label">Tata Letak (Klik Ubah)</div>
+                    <div class="kiosk-stat-label">Tata Letak Layar TV</div>
                 </div>
             </div>
         </div>
@@ -1320,8 +1305,8 @@ function get_display_label($mode)
                                 style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1;">
                                 <option value="default">⚙️ Mengikuti Default Kiosk
                                     (<?php echo get_bg_label($current_bg_tpl); ?>)</option>
-                                <option value="orbs">🫧 Bola-Bola Bergerak (Floating Orbs)</option>
-                                <option value="ambient">🪞 Ambient Blur Cerdas (Dynamic Blur)</option>
+                                <option value="orbs">🔮 Bola-Bola Bergerak (Floating Orbs)</option>
+                                <option value="ambient">🎨 Ambient Blur Cerdas (Dynamic Blur)</option>
                                 <option value="gradient">🌌 Gelombang Aurora (Gradient Wave)</option>
                                 <option value="particles">✨ Partikel Bintang (Star Particles)</option>
                                 <option value="navy">🏛️ Midnight Navy</option>
@@ -1341,10 +1326,10 @@ function get_display_label($mode)
                             <select name="media_display_mode" class="form-control"
                                 style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1;">
                                 <option value="default">🌐 Mengikuti Default Kiosk
-                                    (<?php echo ($current_display_mode === 'fullscreen' ? 'Memenuhi Layar Penuh' : 'Bingkai Melayang'); ?>)
+                                    (<?php echo ($current_display_mode === 'fullscreen' ? 'Memenuhi Layar Penuh' : 'Bingkai Tengah'); ?>)
                                 </option>
                                 <option value="fullscreen">🖥️ Selalu Memenuhi Layar Penuh (Edge-to-Edge)</option>
-                                <option value="framed">🪟 Selalu Bingkai Melayang di Tengah</option>
+                                <option value="framed">🖼️ Selalu Bingkai Melayang di Tengah</option>
                             </select>
                         </div>
                     </div>
@@ -1653,7 +1638,7 @@ function get_display_label($mode)
                             onclick="selectDisplayMode('framed', this)">
                             <div
                                 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="font-size: 1.5rem;">🪟</span>
+                                <span style="font-size: 1.5rem;">🖼️</span>
                                 <span class="kiosk-bg-card-badge" style="background: #6366f1; color: #ffffff;">Efek
                                     Kartu</span>
                             </div>
@@ -1683,7 +1668,7 @@ function get_display_label($mode)
                         <span class="kiosk-bg-card-badge kiosk-bg-badge-anim">Animasi</span>
                         <div class="kiosk-bg-card-thumb"
                             style="background: radial-gradient(circle, #0284c7 20%, #7c3aed 80%);">
-                            🫧
+                            🔮
                         </div>
                         <div class="kiosk-bg-card-title">Bola-Bola Mengambang</div>
                         <div class="kiosk-bg-card-desc">Bola-bola cahaya futuristik bergerak mengambang secara dinamis.
@@ -1696,7 +1681,7 @@ function get_display_label($mode)
                         <span class="kiosk-bg-card-badge kiosk-bg-badge-smart">Cerdas</span>
                         <div class="kiosk-bg-card-thumb"
                             style="background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4); filter: blur(4px);">
-                            🪞
+                            🎨
                         </div>
                         <div class="kiosk-bg-card-title">Ambient Blur Cerdas</div>
                         <div class="kiosk-bg-card-desc">Otomatis mem-blur media yang sedang tayang menjadi latar yang
@@ -1915,8 +1900,8 @@ function get_display_label($mode)
                     style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1;">
                     <option value="default">⚙️ Mengikuti Default Kiosk (<?php echo get_bg_label($current_bg_tpl); ?>)
                     </option>
-                    <option value="orbs">🫧 Bola-Bola Bergerak (Floating Orbs)</option>
-                    <option value="ambient">🪞 Ambient Blur Cerdas (Dynamic Blur)</option>
+                    <option value="orbs">🔮 Bola-Bola Bergerak (Floating Orbs)</option>
+                    <option value="ambient">🎨 Ambient Blur Cerdas (Dynamic Blur)</option>
                     <option value="gradient">🌌 Gelombang Aurora (Gradient Wave)</option>
                     <option value="particles">✨ Partikel Bintang (Star Particles)</option>
                     <option value="navy">🏛️ Midnight Navy</option>
@@ -1936,7 +1921,7 @@ function get_display_label($mode)
                         (<?php echo ($current_display_mode === 'fullscreen' ? 'Memenuhi Layar Penuh' : 'Bingkai Tengah'); ?>)
                     </option>
                     <option value="fullscreen">🖥️ Memenuhi Layar Penuh (Edge-to-Edge)</option>
-                    <option value="framed">🪟 Bingkai Melayang di Tengah</option>
+                    <option value="framed">🖼️ Bingkai Melayang di Tengah</option>
                 </select>
             </div>
 
