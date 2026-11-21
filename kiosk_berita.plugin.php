@@ -29,11 +29,24 @@ $dbs->query("CREATE TABLE IF NOT EXISTS `plugin_kiosk_media` (
   `transition_duration` INT(11) NOT NULL DEFAULT 5,
   `order_num` INT(11) NOT NULL DEFAULT 0,
   `bg_template` VARCHAR(50) NOT NULL DEFAULT 'default',
+  `display_mode` VARCHAR(50) NOT NULL DEFAULT 'default',
   `created_date` DATETIME NOT NULL,
   PRIMARY KEY (`media_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+// Update tabel jika kolom display_mode belum ada
+$col_disp = $dbs->query("SHOW COLUMNS FROM `plugin_kiosk_media` LIKE 'display_mode'");
+if ($col_disp && $col_disp->num_rows == 0) {
+    $dbs->query("ALTER TABLE `plugin_kiosk_media` ADD COLUMN `display_mode` VARCHAR(50) NOT NULL DEFAULT 'default'");
+}
 
 $dbs->query("CREATE TABLE IF NOT EXISTS `plugin_kiosk_setting` (
   `setting_key` VARCHAR(50) NOT NULL PRIMARY KEY,
   `setting_value` TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+// Inisialisasi default setting media_display_mode jika belum ada
+$chk_disp = $dbs->query("SELECT setting_value FROM plugin_kiosk_setting WHERE setting_key = 'media_display_mode'");
+if ($chk_disp && $chk_disp->num_rows == 0) {
+    $dbs->query("INSERT INTO plugin_kiosk_setting (setting_key, setting_value) VALUES ('media_display_mode', 'fullscreen')");
+}

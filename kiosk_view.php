@@ -26,7 +26,12 @@ if ($col_check4 && $col_check4->num_rows == 0) {
     $dbs->query("ALTER TABLE `plugin_kiosk_media` ADD COLUMN `bg_template` VARCHAR(50) NOT NULL DEFAULT 'default'");
 }
 
-// Ambil Pengaturan Latar Belakang Global
+$col_check5 = $dbs->query("SHOW COLUMNS FROM `plugin_kiosk_media` LIKE 'display_mode'");
+if ($col_check5 && $col_check5->num_rows == 0) {
+    $dbs->query("ALTER TABLE `plugin_kiosk_media` ADD COLUMN `display_mode` VARCHAR(50) NOT NULL DEFAULT 'default'");
+}
+
+// Ambil Pengaturan Latar Belakang & Tata Letak Layar Global
 $bg_settings = [];
 $q_set = $dbs->query("SELECT setting_key, setting_value FROM plugin_kiosk_setting");
 if ($q_set && $q_set->num_rows > 0) {
@@ -34,11 +39,12 @@ if ($q_set && $q_set->num_rows > 0) {
         $bg_settings[$s['setting_key']] = $s['setting_value'];
     }
 }
-$global_bg_tpl    = $bg_settings['bg_template'] ?? 'orbs';
-$global_bg_file   = $bg_settings['bg_custom_file'] ?? '';
-$global_bg_blur   = (int)($bg_settings['bg_blur'] ?? 25);
-$global_bg_bright = (float)($bg_settings['bg_brightness'] ?? 0.65);
-$bg_upload_url    = SWB . 'files/kiosk_media/backgrounds/';
+$global_bg_tpl       = $bg_settings['bg_template'] ?? 'orbs';
+$global_bg_file      = $bg_settings['bg_custom_file'] ?? '';
+$global_bg_blur      = (int)($bg_settings['bg_blur'] ?? 25);
+$global_bg_bright    = (float)($bg_settings['bg_brightness'] ?? 0.65);
+$global_display_mode = $bg_settings['media_display_mode'] ?? 'fullscreen'; // 'fullscreen' (edge-to-edge) atau 'framed' (bingkai melayang)
+$bg_upload_url       = SWB . 'files/kiosk_media/backgrounds/';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -114,14 +120,44 @@ $bg_upload_url    = SWB . 'files/kiosk_media/backgrounds/';
         }
 
         .kiosk-fg-media {
-            max-width: 96vw;
-            max-height: 96vh;
             object-fit: contain;
-            border-radius: 14px;
-            box-shadow: 0 16px 50px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.15);
             outline: none;
             border: none;
             background: transparent;
+            transition: max-width 0.3s ease, max-height 0.3s ease, border-radius 0.3s ease;
+        }
+
+        /* ======================================================== */
+        /* MODE 1: MEMENUHI LAYAR PENUH (EDGE-TO-EDGE)              */
+        /* Sesuai Permintaan User: Video & foto memenuhi layar      */
+        /* dan tetap proporsional tanpa terpotong.                  */
+        /* ======================================================== */
+        .kiosk-slide.display-fullscreen .kiosk-fg-media {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            object-fit: contain !important;
+            border-radius: 0px !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* ======================================================== */
+        /* MODE 2: BINGKAI MELAYANG DI TENGAH (FRAMED CENTER CARD)  */
+        /* Video & foto berada di tengah dengan sela tepi, sudut   */
+        /* melengkung halus, dan bayangan mengambang di atas latar. */
+        /* ======================================================== */
+        .kiosk-slide.display-framed .kiosk-fg-media {
+            max-width: 94vw !important;
+            max-height: 94vh !important;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain !important;
+            border-radius: 16px !important;
+            box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.15) !important;
+            margin: auto !important;
         }
 
         /* ======================================================== */
@@ -405,13 +441,19 @@ $bg_upload_url    = SWB . 'files/kiosk_media/backgrounds/';
 
                 // Tentukan template latar belakang untuk slide ini
                 $slide_bg_tpl = (!empty($m['bg_template']) && $m['bg_template'] !== 'default') ? $m['bg_template'] : $global_bg_tpl;
+
+                // Tentukan mode tata letak layar (Fullscreen Edge-to-Edge vs Bingkai Melayang)
+                $slide_disp_mode = (!empty($m['display_mode']) && $m['display_mode'] !== 'default') ? $m['display_mode'] : $global_display_mode;
+                if (!in_array($slide_disp_mode, ['fullscreen', 'framed'])) $slide_disp_mode = 'fullscreen';
+                $disp_class = 'display-' . $slide_disp_mode;
                 ?>
-                <div class="kiosk-slide <?php echo $active_class; ?>" 
+                <div class="kiosk-slide <?php echo $active_class . ' ' . $disp_class; ?>" 
                      data-index="<?php echo $idx; ?>"
                      data-type="<?php echo $type; ?>" 
                      data-transition="<?php echo $trans_style; ?>" 
                      data-duration="<?php echo $trans_dur; ?>"
-                     data-bg="<?php echo $slide_bg_tpl; ?>">
+                     data-bg="<?php echo $slide_bg_tpl; ?>"
+                     data-display="<?php echo $slide_disp_mode; ?>">
 
                     <!-- 1. LAYER LATAR BELAKANG (BERGERAK / STATIS / CUSTOM) -->
                     <?php if ($slide_bg_tpl === 'ambient'): ?>
@@ -540,6 +582,62 @@ $bg_upload_url    = SWB . 'files/kiosk_media/backgrounds/';
                 audioToast.textContent = isMuted ? '🔇 Suara: Mati' : '🔊 Suara: Nyala';
                 audioToast.style.opacity = '1';
                 setTimeout(() => { audioToast.style.opacity = '0'; }, 1500);
+            }
+        });
+
+        // Kontrol Keyboard Cerdas di Monitor / TV:
+        // 'L' atau 'T' = Toggle Tata Letak (Penuh Layar Edge-to-Edge vs Bingkai Melayang di Tengah)
+        // 'M' = Toggle Audio Suara Video
+        // 'F' = Toggle Mode Layar Penuh Fullscreen
+        // Panah Kanan / Spasi = Lanjut ke Slide Berikutnya
+        // Panah Kiri = Kembali ke Slide Sebelumnya
+        document.addEventListener('keydown', function(e) {
+            const key = e.key.toLowerCase();
+            if (key === 'l' || key === 't') {
+                let isNowFramed = false;
+                slides.forEach(slide => {
+                    if (slide.classList.contains('display-framed')) {
+                        slide.classList.remove('display-framed');
+                        slide.classList.add('display-fullscreen');
+                        isNowFramed = false;
+                    } else {
+                        slide.classList.remove('display-fullscreen');
+                        slide.classList.add('display-framed');
+                        isNowFramed = true;
+                    }
+                });
+
+                if (audioToast) {
+                    audioToast.textContent = isNowFramed ? '🪟 Tata Letak: Bingkai Melayang di Tengah' : '🖥️ Tata Letak: Memenuhi Layar Penuh (Edge-to-Edge)';
+                    audioToast.style.opacity = '1';
+                    setTimeout(() => { audioToast.style.opacity = '0'; }, 2000);
+                }
+            } else if (key === 'm') {
+                isMuted = !isMuted;
+                document.querySelectorAll('.kiosk-fg-media').forEach(v => {
+                    if (v.tagName.toLowerCase() === 'video') v.muted = isMuted;
+                });
+                if (audioToast) {
+                    audioToast.textContent = isMuted ? '🔇 Suara: Mati' : '🔊 Suara: Nyala';
+                    audioToast.style.opacity = '1';
+                    setTimeout(() => { audioToast.style.opacity = '0'; }, 1500);
+                }
+            } else if (key === 'f') {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(() => {});
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        document.documentElement.webkitRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(() => {});
+                    }
+                }
+            } else if (key === 'arrowright' || key === ' ') {
+                showSlide(currentIndex + 1);
+            } else if (key === 'arrowleft') {
+                showSlide(currentIndex - 1);
             }
         });
 
